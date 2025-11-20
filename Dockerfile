@@ -1,5 +1,13 @@
 FROM openjdk:21-slim
 WORKDIR /app
-COPY target/energy-mix-0.0.1-SNAPSHOT.jar app.jar
+
+# Kopiuj kod źródłowy
+COPY . .
+
+# Zbuduj JAR
+RUN chmod +x mvnw
+RUN ./mvnw clean package -DskipTests
+
+# Uruchom aplikację
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "target/energy-mix-0.0.1-SNAPSHOT.jar"]
