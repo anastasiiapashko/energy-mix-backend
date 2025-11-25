@@ -23,6 +23,7 @@ public class EnergyService {
         this.objectMapper = objectMapper;
     }
     
+    // Gets energy mix for today + next 2 days
     public List<EnergyMix> getEnergyMixForThreeDays() {
         List<EnergyMix> result = new ArrayList<>();
         
@@ -35,6 +36,7 @@ public class EnergyService {
         return result;
     }
     
+    // Gets energy data for one specific day from the API
     private EnergyMix getEnergyMixForDate(LocalDate date) {
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'");
@@ -51,19 +53,20 @@ public class EnergyService {
         }
     }
     
+    // Converts JSON API response into EnergyMix object
     private EnergyMix parseEnergyDataFromResponse(String date, String jsonResponse) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode dataArray = root.path("data");
             
-            // Mapy do zliczania sum dla każdego źródła energii
+            // Track totals for each energy source
             Map<String, Double> sums = new HashMap<>();
             Map<String, Integer> counts = new HashMap<>();
             
-            // Lista czystych źródeł energii
+            // Clean energy sources we care about
             List<String> cleanSources = Arrays.asList("biomass", "nuclear", "hydro", "wind", "solar");
             
-            // półgodzinne interwały
+            // Process each 30-minute interval
             for(JsonNode interval : dataArray) {
                 JsonNode generationMix = interval.path("generationmix");
                 
@@ -71,27 +74,27 @@ public class EnergyService {
                     String fuelName = fuel.path("fuel").asText();
                     double percentage = fuel.path("perc").asDouble();
                     
-                    // Dodaj do sumy dla tego źródła
+                    // Add to total for this fuel type
                     sums.put(fuelName, sums.getOrDefault(fuelName, 0.0) + percentage);
                     counts.put(fuelName, counts.getOrDefault(fuelName, 0) + 1);
                 }
             }
             
-            // obliczenie średniej
+            // Calculate averages for each fuel type
             Map<String, Double> averages = new HashMap<>();
             for (String fuel : sums.keySet()) {
                 double average = sums.get(fuel) / counts.get(fuel);
                 averages.put(fuel, Math.round(average * 10.0) / 10.0);
             }
             
-            // Oblicz % czystej energii
+            // Calculate total clean energy percentage
             double cleanEnergyTotal = 0;
             for (String cleanSource : cleanSources) {
                 cleanEnergyTotal += averages.getOrDefault(cleanSource, 0.0);
             }
             double cleanEnergyPercentage = Math.round(cleanEnergyTotal * 10.0) / 10.0;
             
-            // Stwórz obiekt EnergyMix
+            // Create and return the EnergyMix object
             EnergyMix energyMix = new EnergyMix();
             energyMix.setDate(date);
             energyMix.setAverageMix(averages);
@@ -104,12 +107,11 @@ public class EnergyService {
         }    
     }
     
-  //metoda do pobrania interwałów
- // Pobiera WSZYSTKIE interwały półgodzinne dla 2 dni (jutro i pojutrze)
+    // Gets all 30-minute intervals for tomorrow and day after tomorrow
     private List<EnergyInterval> getEnergyIntervalsForTwoDays() {
         List<EnergyInterval> allIntervals = new ArrayList<>();
         
-        // Tylko 2 dni: jutro (i=1) i pojutrze (i=2)
+        // Only next 2 days (tomorrow and day after)
         for (int i = 1; i <= 2; i++) {
             LocalDate date = LocalDate.now().plusDays(i);
             List<EnergyInterval> dayIntervals = getEnergyIntervalsForDate(date);
@@ -119,7 +121,7 @@ public class EnergyService {
         return allIntervals;
     }
 
-    // Pobiera interwały dla JEDNEGO dnia
+    // Gets intervals for one specific day
     private List<EnergyInterval> getEnergyIntervalsForDate(LocalDate date) {
         List<EnergyInterval> intervals = new ArrayList<>();
         
@@ -140,7 +142,7 @@ public class EnergyService {
         return intervals;
     }
     
- // Parsuje interwały z JSON (podobnie jak wcześniej, ale zwraca listę interwałów)
+    // Converts JSON response into list of EnergyInterval objects
     private List<EnergyInterval> parseEnergyIntervalsFromResponse(String jsonResponse) {
         List<EnergyInterval> intervals = new ArrayList<>();
         
@@ -148,18 +150,17 @@ public class EnergyService {
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode dataArray = root.path("data");
             
-            // Lista czystych źródeł energii
             List<String> cleanSources = Arrays.asList("biomass", "nuclear", "hydro", "wind", "solar");
             
             for (JsonNode interval : dataArray) {
-                String from = interval.path("from").asText(); // "2025-11-20T00:00Z"
-                String to = interval.path("to").asText();     // "2025-11-20T00:30Z"
+                String from = interval.path("from").asText();
+                String to = interval.path("to").asText();
                 
-                // Konwersja string na LocalDateTime
+                // Convert string to LocalDateTime
                 LocalDateTime startTime = LocalDateTime.parse(from.replace("Z", ""));
                 LocalDateTime endTime = LocalDateTime.parse(to.replace("Z", ""));
                 
-                // Oblicz % czystej energii dla tego interwału
+                // Calculate clean energy % for this interval
                 double cleanEnergyPercentage = calculateCleanEnergyForInterval(interval, cleanSources);
                 
                 intervals.add(new EnergyInterval(startTime, endTime, cleanEnergyPercentage));
@@ -172,7 +173,7 @@ public class EnergyService {
         return intervals;
     }
 
-    // Oblicza % czystej energii dla JEDNEGO interwału
+    // Calculates clean energy % for a single 30-minute interval
     private double calculateCleanEnergyForInterval(JsonNode interval, List<String> cleanSources) {
         double cleanEnergy = 0;
         JsonNode generationMix = interval.path("generationmix");
@@ -189,7 +190,7 @@ public class EnergyService {
         return Math.round(cleanEnergy * 10.0) / 10.0;
     }
     
- // KLASA POMOCNICZA dla przechowywania najlepszego okna
+    // Helper class to store the best charging window
     private static class OptimalWindow {
         private LocalDateTime startTime;
         private LocalDateTime endTime;
@@ -197,7 +198,6 @@ public class EnergyService {
         
         public OptimalWindow() {}
         
-        // gettery i settery
         public LocalDateTime getStartTime() { return startTime; }
         public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
         
@@ -210,16 +210,23 @@ public class EnergyService {
         }
     }
     
+    // Main method to find the best time to charge electric car
     public Map<String, Object> findOptimalChargingWindow(int hours) {
-        // 1 godzina = 2 interwały półgodzinne
+        // Validate input: only 1-6 hours allowed
+        if (hours < 1 || hours > 6) {
+            throw new IllegalArgumentException("Godziny muszą być między 1 a 6");
+        }
+        
+        // Convert hours to 30-minute intervals needed
         int intervalsNeeded = hours * 2;
         
-        // Pobierz wszystkie interwały dla 2 dni
+        // Get all intervals for next 2 days
         List<EnergyInterval> allIntervals = getEnergyIntervalsForTwoDays();
         
-        // Znajdź najlepsze okno
+        // Find the best time window
         OptimalWindow optimalWindow = findBestWindow(allIntervals, intervalsNeeded);
         
+        // Return result with formatted times
         return Map.of(
             "startTime", optimalWindow.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
             "endTime", optimalWindow.getEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
@@ -228,7 +235,7 @@ public class EnergyService {
         );
     }
 
-    // Szuka najlepszego okna spośród wszystkich interwałów
+    // Finds the best consecutive time window with highest clean energy
     private OptimalWindow findBestWindow(List<EnergyInterval> intervals, int intervalsNeeded) {
         if (intervals.size() < intervalsNeeded) {
             throw new RuntimeException("Za mało danych do znalezienia okna");
@@ -237,18 +244,18 @@ public class EnergyService {
         OptimalWindow bestWindow = null;
         double bestAverage = -1;
         
-        // Przesuwaj okno po wszystkich interwałach
+        // Slide window through all intervals
         for (int i = 0; i <= intervals.size() - intervalsNeeded; i++) {
             double windowSum = 0;
             
-            // Oblicz sumę czystej energii dla tego okna
+            // Calculate sum for current window
             for (int j = 0; j < intervalsNeeded; j++) {
                 windowSum += intervals.get(i + j).getCleanEnergyPercentage();
             }
             
             double windowAverage = windowSum / intervalsNeeded;
             
-            // Jeśli to najlepsze okno dotychczas, zapisz je
+            // If this is the best window so far, save it
             if (windowAverage > bestAverage) {
                 bestAverage = windowAverage;
                 bestWindow = new OptimalWindow();

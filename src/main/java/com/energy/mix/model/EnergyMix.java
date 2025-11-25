@@ -4,14 +4,14 @@ import java.util.Map;
 
 public class EnergyMix {
 
-	private String date;	//data (dziś, jutro, pojutrze)
-	private Map<String, Double> averageMix; //przechowuje różne źródła z ich procentami
-	private double cleanEnergyPercentage; //procent czystej energii
+	private String date;	// Date (today, tomorrow, day after)
+	private Map<String, Double> averageMix; // Stores different energy sources with their percentages
+	private double cleanEnergyPercentage; // Percentage of clean energy
 	
-	//konstructor
+	// Empty constructor
 	public EnergyMix() {}
 	
-	//gettery i settery
+	// Getters and setters
 	public String getDate() {
 		return date;
 	}
@@ -38,4 +38,3 @@ public class EnergyMix {
 	}
 
 }
-

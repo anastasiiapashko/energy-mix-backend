@@ -2,22 +2,24 @@ package com.energy.mix.model;
 
 import java.time.LocalDateTime;
 
-//przechowuje pojedyncze interwały
+// Stores single 30-minute time intervals
 public class EnergyInterval {
 
-	private LocalDateTime startTime;
-	private LocalDateTime endTime;
-	private double cleanEnergyPercentage;
+	private LocalDateTime startTime;    // When the interval starts
+	private LocalDateTime endTime;      // When the interval ends  
+	private double cleanEnergyPercentage; // Clean energy % during this interval
 	
+	// Empty constructor
 	public EnergyInterval() {}
 	
+	// Constructor with all data
 	public EnergyInterval(LocalDateTime startTime, LocalDateTime endTime, double cleanEnergyPercentage) {
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.cleanEnergyPercentage = cleanEnergyPercentage;
 	}
 	
-	//gettery, settery
+	// Getters and setters
 	public LocalDateTime getStartTime() {
 		return startTime;
 	}
